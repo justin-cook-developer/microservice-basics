@@ -8,6 +8,24 @@ const app = express();
 
 const commentsByPostId = {};
 
+// could use this function to process past events
+const handleEvent = async (event) => {
+  const { type, data } = event;
+
+  if (type === "CommentModerated") {
+    const comment = commentsByPostId[data.postId].find((c) => c.id === data.id);
+
+    if (comment !== undefined) {
+      comment.status = data.status;
+
+      await axios.post("http://localhost:4005/events", {
+        type: "CommentUpdated",
+        data,
+      });
+    }
+  }
+};
+
 app.use(cors());
 app.use(express.json());
 
@@ -42,21 +60,7 @@ app.post("/posts/:id/comments", async (req, res) => {
 });
 
 app.post("/events", async (req, res) => {
-  const { type, data } = req.body;
-
-  if (type === "CommentModerated") {
-    const comment = commentsByPostId[data.postId].find((c) => c.id === data.id);
-
-    if (comment !== undefined) {
-      comment.status = data.status;
-
-      await axios.post("http://localhost:4005/events", {
-        type: "CommentUpdated",
-        data,
-      });
-    }
-  }
-
+  await handleEvent(req.body);
   res.sendStatus(200);
 });
 
